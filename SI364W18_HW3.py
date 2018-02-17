@@ -1,5 +1,7 @@
 ## SI 364 - Winter 2018
 ## HW 3
+## Allan Chen (allanmc)
+## I worked with Colleen Feola on this homework assignment.
 
 ####################
 ## Import statements
@@ -61,7 +63,6 @@ class Tweets(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 
-
     def __repr__(self):
         return "{} (ID: {})".format(self.text,self.id)
 
@@ -83,8 +84,6 @@ class Users(db.Model):
     child = db.relationship('Tweets', backref="user")
 
 
-
-
     def __repr__(self):
         return "{} | ID: {})".format(self.username,self.id)
 ########################
@@ -96,16 +95,27 @@ class Users(db.Model):
 class TwitterForm(FlaskForm):
     text = StringField("Enter the text of the tweet (no more than 280 chars): ", validators=[Required(), Length(min=1, max=280)])
     username = StringField("Enter the username of the twitter user (no '@'!):", validators=[Required(), Length(min=1, max=64)])
-    display_name = StringField("Enter the display name for the twitter user (must be at least 2 words):")
+    display_name = StringField("Enter the display name for the twitter user (must be at least 2 words):", validators=[Required(), Length(min=1, max=124)])
     submit = SubmitField("Submit")
-    def validate_display_name(self, field):
-        lst = field.data.split()
-        if len(lst) < 2:
-            raise ValidationError("Display name MUST be at least 2 words")
+
+    def validate_text(self, field):
+        if (len(field.data) < 1) and (len(field.data) > 280):
+            raise ValidationError("Tweet text must be between 1 and 280 characters long.")
+
 
     def validate_username(self, field):
         if field.data.startswith('@'):
-            raise ValidationError("Twitter username may NOT start with an '@' symbol")
+            raise ValidationError("Username begins with @ sign -- leave off the @ for username!")
+        if (len(field.data) < 1) and (len(field.data) > 64):
+            raise ValidationError("Username field must be between 1 and 64 characters long.")
+
+    def validate_display_name(self, field):
+        lst = field.data.split()
+        if len(lst) < 2:
+            raise ValidationError("Display name is not at least 2 words.")
+        if (len(field.data) < 1) and (len(field.data) > 124):
+            raise ValidationError("Display name field must be between 1 and 124 characters long.")
+
 
 
 
@@ -163,7 +173,7 @@ def index():
 
     # If the form was posted to this route,
     ## Get the data from the form
-    if request.method == "POST":
+    if request.method == "POST" and form.validate_on_submit():
         text = form.text.data
         username = form.username.data
         display_name = form.display_name.data
@@ -182,8 +192,8 @@ def index():
         user2 = Users.query.filter_by(username=username).first().id
         tweet = Tweets.query.filter_by(text=text, user_id=user2).first()
         if tweet:
-            flash("Tweet already exists!")
-            return redirect(url_for('all_tweets.html'))
+            flash("That tweet already exists from that user!")
+            return redirect(url_for('see_all_tweets'))
 
     ## Assuming we got past that redirect,
     ## Create a new tweet object with the text and user id
